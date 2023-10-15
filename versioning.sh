@@ -1,31 +1,24 @@
 #!/bin/bash
 
-# Define your initial version (e.g., 0.1.0)
+# Get the latest commit message
+latest_commit_msg=$(git log --format=%B -n 1 HEAD)
+
+# Initialize the version
 version="0.1.0"
 
-# Get the latest Git tag
-latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-# If there's a latest tag, parse it to determine the major, minor, and patch version
-if [[ -n $latest_tag ]]; then
-    major_minor_patch=($(echo $latest_tag | sed 's/v//; s/\./ /g'))
-    major=${major_minor_patch[0]}
-    minor=${major_minor_patch[1]}
-    patch=${major_minor_patch[2]}
-
-    # Increment the appropriate version based on commit messages
-    while IFS= read -r commit; do
-        case $commit in
-            *BREAKING*) major=$((major + 1)) minor=0 patch=0 ;;
-            *FEATURE*)  minor=$((minor + 1)) patch=0 ;;
-            *FIX*)      patch=$((patch + 1)) ;;
-            *) continue ;;
-        esac
-    done < <(git log --pretty=format:"%s")
-
-    # Set the new version
-    version="${major}.${minor}.${patch}"
+# Check for specific keywords in the latest commit message
+if [[ $latest_commit_msg == *BREAKING* ]]; then
+    version=$(awk -F. '{print $1 + 1 ".0.0"}' <<< $version)
+elif [[ $latest_commit_msg == *FIX* ]]; then
+    version=$(awk -F. '{print $1 "." $2 + 1 ".0"}' <<< $version)
+else
+    version=$(awk -F. '{print $1 "." $2 "." $3 + 1}' <<< $version)
 fi
 
-# Output the version
-echo "$version"
+# Get the latest Docker image tag
+latest_docker_tag=$(docker images --format "{{.Tag}}" helloworld-node | sort -V | tail -n 1)
+
+# Increment the tag version based on the commit message
+new_docker_tag="${latest_docker_tag%%.*}.$version"
+
+echo "$new_docker_tag"
