@@ -1,24 +1,16 @@
 #!/bin/bash
 
-# Get the latest commit message
+# Define your initial version
+version=$(grep -Eo '"version": ".*",' package.json | sed 's/"version": "\(.*\)",/\1/')
+
+# Check the latest commit message for specific keywords
 latest_commit_msg=$(git log --format=%B -n 1 HEAD)
 
-# Initialize the version
-version="0.1.0"
-
-# Check for specific keywords in the latest commit message
 if [[ $latest_commit_msg == *BREAKING* ]]; then
-    version=$(awk -F. '{print $1 + 1 ".0.0"}' <<< $version)
+    version=$(npm version major)
 elif [[ $latest_commit_msg == *FIX* ]]; then
-    version=$(awk -F. '{print $1 "." $2 + 1 ".0"}' <<< $version)
-else
-    version=$(awk -F. '{print $1 "." $2 "." $3 + 1}' <<< $version)
+    version=$(npm version patch)
 fi
 
-# Get the latest Docker image tag
-latest_docker_tag=$(docker images --format "{{.Tag}}" helloworld-node | sort -V | tail -n 1)
-
-# Increment the tag version based on the commit message
-new_docker_tag="${latest_docker_tag%%.*}.$version"
-
-echo "$new_docker_tag"
+# Output the updated version
+echo "$version"
